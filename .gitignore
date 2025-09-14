@@ -1,0 +1,44 @@
+# IDE files
+.idea/
+*.iml
+.vscode/
+
+# Build files
+target/
+*.class
+*.jar
+*.log
+
+# Data files (don't commit large datasets)
+data/raw/*
+data/processed/*
+data/delta/*
+data/checkpoints/*
+
+# Docker volumes
+postgres_data/
+redis_data/
+
+# Logs
+logs/
+*.log
+
+# Environment files with secrets
+.env
+**/application-prod.conf
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Scala/SBT
+project/target/
+project/project/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/

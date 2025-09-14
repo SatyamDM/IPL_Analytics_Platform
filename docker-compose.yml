@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  # Apache Zookeeper for Kafka coordination
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: ipl-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - ipl-network
+
+  # Apache Kafka for real-time data streaming
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: ipl-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    networks:
+      - ipl-network
+
+  # PostgreSQL for metadata and structured data
+  postgres:
+    image: postgres:15-alpine
+    container_name: ipl-postgres
+    environment:
+      POSTGRES_DB: ipl_analytics
+      POSTGRES_USER: ipl_user
+      POSTGRES_PASSWORD: ipl_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    networks:
+      - ipl-network
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    container_name: ipl-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ipl-network
+
+  # Apache Spark Master
+  spark-master:
+    image: bitnami/spark:3.5.0
+    container_name: ipl-spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    ports:
+      - "8080:8080"  # Spark Master Web UI
+      - "7077:7077"  # Spark Master Port
+    volumes:
+      - ./src:/opt/spark/work/src
+      - ./data:/opt/spark/work/data
+      - ./config:/opt/spark/conf
+    networks:
+      - ipl-network
+
+  # Apache Spark Worker
+  spark-worker:
+    image: bitnami/spark:3.5.0
+    container_name: ipl-spark-worker
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=2
+    depends_on:
+      - spark-master
+    volumes:
+      - ./src:/opt/spark/work/src
+      - ./data:/opt/spark/work/data
+    networks:
+      - ipl-network
+
+  # Jupyter Notebook for data exploration
+  jupyter:
+    image: jupyter/pyspark-notebook:spark-3.5.0
+    container_name: ipl-jupyter
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - SPARK_MASTER=spark://spark-master:7077
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/home/jovyan/work
+      - ./data:/home/jovyan/data
+      - ./src:/home/jovyan/src
+    networks:
+      - ipl-network
+
+  # Kafka UI for monitoring Kafka topics and messages
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: ipl-kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8089:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=ipl-kafka
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:29092
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+    networks:
+      - ipl-network
+
+networks:
+  ipl-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
