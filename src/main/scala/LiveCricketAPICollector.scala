@@ -145,6 +145,7 @@ object LiveCricketAPICollector {
         )
       """)
 
+
       // Ball by ball data table
       stmt.execute("""
         CREATE TABLE IF NOT EXISTS live_balls (
