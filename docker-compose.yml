@@ -75,25 +75,45 @@ services:
       - "7077:7077"  # Spark Master Port
     volumes:
       - ./src:/opt/spark/work/src
-      - ./data:/opt/spark/work/data
+      - ./data/raw/ipl_json:/opt/bitnami/spark/data/ipl_json  # ✅ FIXED: Correct source path
+      - ./output:/opt/bitnami/spark/output            # ✅ ADDED: Output directory
       - ./config:/opt/spark/conf
     networks:
       - ipl-network
 
-  # Apache Spark Worker
-  spark-worker:
+  # Apache Spark Worker 1
+  spark-worker-1:
     image: bitnami/spark:3.5.0
-    container_name: ipl-spark-worker
+    container_name: ipl-spark-worker-1
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_MEMORY=2G
-      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_MEMORY=6G
+      - SPARK_WORKER_CORES=4
     depends_on:
       - spark-master
     volumes:
       - ./src:/opt/spark/work/src
-      - ./data:/opt/spark/work/data
+      - ./data/raw/ipl_json:/opt/bitnami/spark/data/ipl_json  # ✅ FIXED: Correct source path
+      - ./output:/opt/bitnami/spark/output            # ✅ ADDED: Output directory
+    networks:
+      - ipl-network
+
+  # Apache Spark Worker 2 (Optional - for more parallelism)
+  spark-worker-2:
+    image: bitnami/spark:3.5.0
+    container_name: ipl-spark-worker-2
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=6G
+      - SPARK_WORKER_CORES=4
+    depends_on:
+      - spark-master
+    volumes:
+      - ./src:/opt/spark/work/src
+      - ./data/raw/ipl_json:/opt/bitnami/spark/data/ipl_json  # ✅ FIXED: Correct source path
+      - ./output:/opt/bitnami/spark/output            # ✅ ADDED: Output directory
     networks:
       - ipl-network
 
@@ -108,7 +128,7 @@ services:
       - "8888:8888"
     volumes:
       - ./notebooks:/home/jovyan/work
-      - ./data:/home/jovyan/data
+      - ./data/raw/ipl_json:/home/jovyan/ipl_json  # ✅ FIXED: Correct source path
       - ./src:/home/jovyan/src
     networks:
       - ipl-network
